@@ -132,11 +132,11 @@
     .annotation-note-title {
       font-weight: 700;
       font-size: 12px;
-      fill: #f472b6;
+      fill: #f472b6 !important;
     }
     .annotation-note-label {
       font-size: 11px;
-      fill: #94a3b8;
+      fill: #cbd5e1 !important;
     }
     .annotation path {
       stroke: #f472b6;
@@ -426,13 +426,13 @@ function scene3() {
   drawAnnotations(g, annotations);
 }
 
-// ===== SHARED HELPERS (visual consistency template) =====
 function drawAnnotations(g, annotations) {
   var makeAnnotations = d3.annotation()
     .type(d3.annotationCalloutElbow)
     .annotations(annotations);
   g.append("g")
     .attr("class", "annotation-group")
+    .style("color", "#f472b6")
     .call(makeAnnotations);
 }
 
