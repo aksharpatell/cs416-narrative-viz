@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>The Rise and Fall of the Video Game Industry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script src="https://d3js.org/d3.v5.min.js"></script>
   <script src="https://rawcdn.githack.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Archivo:wght@600;800&display=swap" rel="stylesheet">
@@ -454,7 +456,11 @@ function addAxisLabels(g, xLabel, yLabel) {
     .text(yLabel);
 }
 
-init();
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(init);
+} else {
+  init();
+}
 </script>
 
 </body>
