@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>The Rise and Fall of the Video Game Industry</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-svg-annotation@2.5.1/d3-annotation.min.js"></script>
+  <style>
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 30px;
+      background: #f7f7f7;
+      color: #222;
+    }
+    #container {
+      width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 25px;
+      border: 1px solid #ccc;
+    }
+    h1 { font-size: 24px; margin: 0 0 5px 0; }
+    #subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
+    #scene-title { font-size: 19px; font-weight: bold; margin-bottom: 4px; }
+    #scene-desc { font-size: 14px; color: #444; margin-bottom: 15px; height: 40px; }
+    #nav { margin-top: 15px; }
+    button {
+      font-size: 15px;
+      padding: 8px 20px;
+      margin-right: 10px;
+      cursor: pointer;
+      background: #4a7ebb;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+    button:disabled { background: #bbb; cursor: default; }
+    #progress { color: #666; font-size: 14px; margin-left: 10px; }
+    #hint { font-size: 13px; color: #888; font-style: italic; margin-top: 8px; height: 18px; }
+    .bar { fill: #4a7ebb; }
+    .bar:hover { fill: #f0a500; }
+    .line { fill: none; stroke: #4a7ebb; stroke-width: 2.5px; }
+    .annotation-note-title { font-weight: bold; font-size: 13px; }
+    .annotation-note-label { font-size: 12px; }
+    #tooltip {
+      position: absolute;
+      background: white;
+      border: 1px solid #333;
+      padding: 8px;
+      font-size: 13px;
+      pointer-events: none;
+      opacity: 0;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="container">
+  <h1>The Rise and Fall of the Video Game Industry</h1>
+  <div id="subtitle">Global video game sales, 1980&ndash;2016 &nbsp;|&nbsp; CS 416 Narrative Visualization</div>
+
+  <div id="scene-title"></div>
+  <div id="scene-desc"></div>
+
+  <svg id="chart" width="850" height="420"></svg>
+
+  <div id="hint"></div>
+
+  <div id="nav">
+    <button id="back">&larr; Back</button>
+    <button id="next">Next &rarr;</button>
+    <span id="progress"></span>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ===== PARAMETERS (state variables) =====
+var currentScene = 0;
+var data = [];
+
+var margin = {top: 30, right: 40, bottom: 70, left: 75};
+var width = 850 - margin.left - margin.right;
+var height = 420 - margin.top - margin.bottom;
+
+// Scene configuration - drives construction of each scene
+var scenes = [
+  {
+    title: "Scene 1: The Industry Boomed, Then Collapsed",
+    desc: "Total global sales climbed for nearly three decades, peaked in 2008, and then fell off a cliff.",
+    hint: ""
+  },
+  {
+    title: "Scene 2: Action and Sports Drove the Boom",
+    desc: "Two genres account for a disproportionate share of all games sold worldwide.",
+    hint: ""
+  },
+  {
+    title: "Scene 3: Explore the Platforms",
+    desc: "Every console had its era. Hover over any bar to see its total sales.",
+    hint: "Tip: hover over any bar for details."
+  }
+];
+
+// ===== LOAD DATA =====
+async function init() {
+  var raw = await d3.csv("vgsales.csv");
+  // Clean: drop rows with missing/invalid year
+  data = raw.filter(function(d) {
+    return d.Year && d.Year !== "N/A" && +d.Year >= 1980 && +d.Year <= 2016;
+  });
+  render();
+}
+
+// ===== TRIGGERS =====
+d3.select("#next").on("click", function() {
+  if (currentScene < scenes.length - 1) { currentScene++; render(); }
+});
+d3.select("#back").on("click", function() {
+  if (currentScene > 0) { currentScene--; render(); }
+});
+
+// ===== RENDER (parameter-driven) =====
+function render() {
+  d3.select("#chart").html("");
+  d3.select("#scene-title").text(scenes[currentScene].title);
+  d3.select("#scene-desc").text(scenes[currentScene].desc);
+  d3.select("#hint").text(scenes[currentScene].hint);
+  d3.select("#progress").text("Scene " + (currentScene + 1) + " of " + scenes.length);
+  d3.select("#back").attr("disabled", currentScene === 0 ? "true" : null);
+  d3.select("#next").attr("disabled", currentScene === scenes.length - 1 ? "true" : null);
+
+  if (currentScene === 0) scene1();
+  else if (currentScene === 1) scene2();
+  else scene3();
+}
+
+function makeGroup() {
+  return d3.select("#chart")
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+}
+
+// ===== SCENE 1: Sales by Year (line chart) =====
+function scene1() {
+  var byYear = d3.nest()
+    .key(function(d) { return d.Year; })
+    .rollup(function(v) { return d3.sum(v, function(d) { return +d.Global_Sales; }); })
+    .entries(data)
+    .map(function(d) { return {year: +d.key, sales: d.value}; })
+    .sort(function(a, b) { return a.year - b.year; });
+
+  var g = makeGroup();
+
+  var x = d3.scaleLinear()
+    .domain(d3.extent(byYear, function(d) { return d.year; }))
+    .range([0, width]);
+
+  var y = d3.scaleLinear()
+    .domain([0, d3.max(byYear, function(d) { return d.sales; })])
+    .range([height, 0]);
+
+  g.append("path")
+    .datum(byYear)
+    .attr("class", "line")
+    .attr("d", d3.line()
+      .x(function(d) { return x(d.year); })
+      .y(function(d) { return y(d.sales); }));
+
+  g.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+
+  g.append("g").call(d3.axisLeft(y));
+
+  addAxisLabels(g, "Year", "Global Sales (millions of units)");
+
+  // ANNOTATION
+  var peak = byYear.reduce(function(a, b) { return a.sales > b.sales ? a : b; });
+  var annotations = [{
+    note: {
+      title: "Peak: " + peak.year,
+      label: d3.format(".0f")(peak.sales) + "M units sold, then a steep decline",
+      wrap: 190
+    },
+    x: x(peak.year),
+    y: y(peak.sales),
+    dx: 30,
+    dy: -40
+  }];
+  drawAnnotations(g, annotations);
+}
+
+// ===== SCENE 2: Sales by Genre (bar chart) =====
+function scene2() {
+  var byGenre = d3.nest()
+    .key(function(d) { return d.Genre; })
+    .rollup(function(v) { return d3.sum(v, function(d) { return +d.Global_Sales; }); })
+    .entries(data)
+    .map(function(d) { return {genre: d.key, sales: d.value}; })
+    .sort(function(a, b) { return b.sales - a.sales; });
+
+  var g = makeGroup();
+
+  var x = d3.scaleBand()
+    .domain(byGenre.map(function(d) { return d.genre; }))
+    .range([0, width])
+    .padding(0.2);
+
+  var y = d3.scaleLinear()
+    .domain([0, d3.max(byGenre, function(d) { return d.sales; })])
+    .range([height, 0]);
+
+  g.selectAll("rect")
+    .data(byGenre)
+    .enter()
+    .append("rect")
+    .attr("class", "bar")
+    .attr("x", function(d) { return x(d.genre); })
+    .attr("y", function(d) { return y(d.sales); })
+    .attr("width", x.bandwidth())
+    .attr("height", function(d) { return height - y(d.sales); });
+
+  g.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", "rotate(-40)")
+    .style("text-anchor", "end");
+
+  g.append("g").call(d3.axisLeft(y));
+
+  addAxisLabels(g, "", "Global Sales (millions of units)");
+
+  // ANNOTATION
+  var top = byGenre[0];
+  var annotations = [{
+    note: {
+      title: top.genre + " leads",
+      label: d3.format(".0f")(top.sales) + "M units — the best-selling genre worldwide",
+      wrap: 190
+    },
+    x: x(top.genre) + x.bandwidth() / 2,
+    y: y(top.sales),
+    dx: 45,
+    dy: -25
+  }];
+  drawAnnotations(g, annotations);
+}
+
+// ===== SCENE 3: Sales by Platform (bar chart + tooltips) =====
+function scene3() {
+  var byPlatform = d3.nest()
+    .key(function(d) { return d.Platform; })
+    .rollup(function(v) { return d3.sum(v, function(d) { return +d.Global_Sales; }); })
+    .entries(data)
+    .map(function(d) { return {platform: d.key, sales: d.value}; })
+    .sort(function(a, b) { return b.sales - a.sales; })
+    .slice(0, 15);
+
+  var g = makeGroup();
+
+  var x = d3.scaleBand()
+    .domain(byPlatform.map(function(d) { return d.platform; }))
+    .range([0, width])
+    .padding(0.2);
+
+  var y = d3.scaleLinear()
+    .domain([0, d3.max(byPlatform, function(d) { return d.sales; })])
+    .range([height, 0]);
+
+  var tooltip = d3.select("#tooltip");
+
+  g.selectAll("rect")
+    .data(byPlatform)
+    .enter()
+    .append("rect")
+    .attr("class", "bar")
+    .attr("x", function(d) { return x(d.platform); })
+    .attr("y", function(d) { return y(d.sales); })
+    .attr("width", x.bandwidth())
+    .attr("height", function(d) { return height - y(d.sales); })
+    // TRIGGER: hover for details on demand
+    .on("mouseover", function(d) {
+      tooltip.transition().duration(150).style("opacity", 1);
+      tooltip.html("<b>" + d.platform + "</b><br>" +
+                   d3.format(".1f")(d.sales) + "M units")
+        .style("left", (d3.event.pageX + 12) + "px")
+        .style("top", (d3.event.pageY - 28) + "px");
+    })
+    .on("mouseout", function() {
+      tooltip.transition().duration(300).style("opacity", 0);
+    });
+
+  g.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", "rotate(-40)")
+    .style("text-anchor", "end");
+
+  g.append("g").call(d3.axisLeft(y));
+
+  addAxisLabels(g, "", "Global Sales (millions of units)");
+
+  // ANNOTATION
+  var top = byPlatform[0];
+  var annotations = [{
+    note: {
+      title: top.platform + " on top",
+      label: d3.format(".0f")(top.sales) + "M units — hover any bar to compare",
+      wrap: 190
+    },
+    x: x(top.platform) + x.bandwidth() / 2,
+    y: y(top.sales),
+    dx: 50,
+    dy: -25
+  }];
+  drawAnnotations(g, annotations);
+}
+
+// ===== SHARED HELPERS (visual consistency template) =====
+function drawAnnotations(g, annotations) {
+  var makeAnnotations = d3.annotation()
+    .type(d3.annotationCalloutElbow)
+    .annotations(annotations);
+  g.append("g")
+    .attr("class", "annotation-group")
+    .call(makeAnnotations);
+}
+
+function addAxisLabels(g, xLabel, yLabel) {
+  if (xLabel) {
+    g.append("text")
+      .attr("x", width / 2)
+      .attr("y", height + 45)
+      .style("text-anchor", "middle")
+      .style("font-size", "13px")
+      .text(xLabel);
+  }
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -height / 2)
+    .attr("y", -55)
+    .style("text-anchor", "middle")
+    .style("font-size", "13px")
+    .text(yLabel);
+}
+
+init();
+</script>
+
+</body>
+</html>
