@@ -6,8 +6,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script src="https://d3js.org/d3.v5.min.js"></script>
-  <script src="https://rawcdn.githack.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Archivo:wght@600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Archivo:wght@600;800&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'JetBrains Mono', monospace;
@@ -129,19 +128,22 @@
     .domain { stroke: #334155; }
     text { font-family: 'JetBrains Mono', monospace; }
     /* annotations */
+    .annotation-line {
+      stroke: #f472b6;
+      stroke-width: 1px;
+    }
+    .annotation-dot {
+      fill: #f472b6;
+    }
     .annotation-note-title {
       font-weight: 700;
       font-size: 12px;
-      fill: #f472b6 !important;
+      fill: #f472b6;
     }
     .annotation-note-label {
       font-size: 11px;
-      fill: #cbd5e1 !important;
+      fill: #cbd5e1;
     }
-    .annotation path {
-      stroke: #f472b6;
-    }
-    .annotation-note-bg { fill: transparent; }
     #tooltip {
       position: absolute;
       background: #0d0f14;
@@ -282,20 +284,17 @@ function scene1() {
 
   addAxisLabels(g, "Year", "Global Sales (millions of units)");
 
-  // ANNOTATION
+  // ANNOTATION: highlight the peak year
   var peak = byYear.reduce(function(a, b) { return a.sales > b.sales ? a : b; });
-  var annotations = [{
-    note: {
-      title: "Peak: " + peak.year,
-      label: d3.format(".0f")(peak.sales) + "M units sold, then a steep decline",
-      wrap: 190
-    },
+  drawAnnotation(g, {
     x: x(peak.year),
     y: y(peak.sales),
-    dx: 30,
-    dy: -40
-  }];
-  drawAnnotations(g, annotations);
+    dx: -180,
+    dy: 50,
+    anchor: "end",
+    title: "Peak: " + peak.year,
+    label: d3.format(".0f")(peak.sales) + "M units, then a steep decline"
+  });
 }
 
 // ===== SCENE 2: Sales by Genre (bar chart) =====
@@ -339,20 +338,17 @@ function scene2() {
 
   addAxisLabels(g, "", "Global Sales (millions of units)");
 
-  // ANNOTATION
+  // ANNOTATION: highlight the top genre
   var top = byGenre[0];
-  var annotations = [{
-    note: {
-      title: top.genre + " leads",
-      label: d3.format(".0f")(top.sales) + "M units — the best-selling genre worldwide",
-      wrap: 190
-    },
+  drawAnnotation(g, {
     x: x(top.genre) + x.bandwidth() / 2,
     y: y(top.sales),
-    dx: 45,
-    dy: -25
-  }];
-  drawAnnotations(g, annotations);
+    dx: 60,
+    dy: 25,
+    anchor: "start",
+    title: top.genre + " leads",
+    label: d3.format(".0f")(top.sales) + "M units — the best-selling genre"
+  });
 }
 
 // ===== SCENE 3: Sales by Platform (bar chart + tooltips) =====
@@ -410,30 +406,59 @@ function scene3() {
 
   addAxisLabels(g, "", "Global Sales (millions of units)");
 
-  // ANNOTATION
+  // ANNOTATION: highlight the top platform
   var top = byPlatform[0];
-  var annotations = [{
-    note: {
-      title: top.platform + " on top",
-      label: d3.format(".0f")(top.sales) + "M units — hover any bar to compare",
-      wrap: 190
-    },
+  drawAnnotation(g, {
     x: x(top.platform) + x.bandwidth() / 2,
     y: y(top.sales),
-    dx: 50,
-    dy: -25
-  }];
-  drawAnnotations(g, annotations);
+    dx: 60,
+    dy: 25,
+    anchor: "start",
+    title: top.platform + " on top",
+    label: d3.format(".0f")(top.sales) + "M units — hover any bar to compare"
+  });
 }
 
-function drawAnnotations(g, annotations) {
-  var makeAnnotations = d3.annotation()
-    .type(d3.annotationCalloutElbow)
-    .annotations(annotations);
-  g.append("g")
-    .attr("class", "annotation-group")
-    .style("color", "#f472b6")
-    .call(makeAnnotations);
+// ===== ANNOTATION TEMPLATE =====
+// Hand-rolled with plain D3 so position and style are fully controlled.
+// Every scene calls this with the same shape (dot + connector + title +
+// label), which keeps annotations visually consistent across scenes.
+function drawAnnotation(g, a) {
+  var tx = a.x + a.dx;   // note anchor point
+  var ty = a.y + a.dy;
+
+  var group = g.append("g").attr("class", "annotation-group");
+
+  // connector from the data point to the note
+  group.append("line")
+    .attr("class", "annotation-line")
+    .attr("x1", a.x)
+    .attr("y1", a.y)
+    .attr("x2", tx)
+    .attr("y2", ty);
+
+  // dot marking the exact data point
+  group.append("circle")
+    .attr("class", "annotation-dot")
+    .attr("cx", a.x)
+    .attr("cy", a.y)
+    .attr("r", 3.5);
+
+  // note title
+  group.append("text")
+    .attr("class", "annotation-note-title")
+    .attr("x", tx)
+    .attr("y", ty - 6)
+    .style("text-anchor", a.anchor)
+    .text(a.title);
+
+  // note label
+  group.append("text")
+    .attr("class", "annotation-note-label")
+    .attr("x", tx)
+    .attr("y", ty + 9)
+    .style("text-anchor", a.anchor)
+    .text(a.label);
 }
 
 function addAxisLabels(g, xLabel, yLabel) {
