@@ -4,54 +4,156 @@
   <meta charset="utf-8">
   <title>The Rise and Fall of the Video Game Industry</title>
   <script src="https://d3js.org/d3.v5.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/d3-svg-annotation@2.5.1/d3-annotation.min.js"></script>
+  <script src="https://rawcdn.githack.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Archivo:wght@600;800&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: Helvetica, Arial, sans-serif;
+      font-family: 'JetBrains Mono', monospace;
       margin: 0;
-      padding: 30px;
-      background: #f7f7f7;
-      color: #222;
+      padding: 40px 20px;
+      background: #0d0f14;
+      color: #e2e8f0;
     }
     #container {
       width: 900px;
       margin: 0 auto;
-      background: white;
-      padding: 25px;
-      border: 1px solid #ccc;
+      background: #151922;
+      padding: 30px;
+      border: 1px solid #252b38;
+      border-radius: 4px;
+      position: relative;
     }
-    h1 { font-size: 24px; margin: 0 0 5px 0; }
-    #subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
-    #scene-title { font-size: 19px; font-weight: bold; margin-bottom: 4px; }
-    #scene-desc { font-size: 14px; color: #444; margin-bottom: 15px; height: 40px; }
-    #nav { margin-top: 15px; }
+    /* scanline overlay - the signature */
+    #container::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(74, 222, 128, 0.03) 0px,
+        rgba(74, 222, 128, 0.03) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      border-radius: 4px;
+    }
+    h1 {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 30px;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px 0;
+      color: #4ade80;
+      text-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+    }
+    #subtitle {
+      color: #64748b;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    #scene-title {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 600;
+      font-size: 18px;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+    }
+    #scene-desc {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 18px;
+      height: 40px;
+      line-height: 1.5;
+    }
+    #nav { margin-top: 18px; display: flex; align-items: center; }
     button {
-      font-size: 15px;
-      padding: 8px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 18px;
       margin-right: 10px;
       cursor: pointer;
-      background: #4a7ebb;
-      color: white;
-      border: none;
-      border-radius: 3px;
+      background: transparent;
+      color: #4ade80;
+      border: 1px solid #4ade80;
+      border-radius: 2px;
+      letter-spacing: 0.05em;
+      transition: background 0.15s, color 0.15s;
     }
-    button:disabled { background: #bbb; cursor: default; }
-    #progress { color: #666; font-size: 14px; margin-left: 10px; }
-    #hint { font-size: 13px; color: #888; font-style: italic; margin-top: 8px; height: 18px; }
-    .bar { fill: #4a7ebb; }
-    .bar:hover { fill: #f0a500; }
-    .line { fill: none; stroke: #4a7ebb; stroke-width: 2.5px; }
-    .annotation-note-title { font-weight: bold; font-size: 13px; }
-    .annotation-note-label { font-size: 12px; }
+    button:hover:not(:disabled) {
+      background: #4ade80;
+      color: #0d0f14;
+    }
+    button:disabled {
+      color: #334155;
+      border-color: #252b38;
+      cursor: default;
+    }
+    button:focus-visible {
+      outline: 2px solid #fbbf24;
+      outline-offset: 2px;
+    }
+    #progress {
+      color: #64748b;
+      font-size: 12px;
+      margin-left: 8px;
+      letter-spacing: 0.05em;
+    }
+    #hint {
+      font-size: 11px;
+      color: #fbbf24;
+      margin-top: 10px;
+      height: 16px;
+      letter-spacing: 0.05em;
+    }
+    /* chart marks */
+    .bar {
+      fill: #4ade80;
+      transition: fill 0.15s;
+    }
+    .bar:hover { fill: #fbbf24; }
+    .line {
+      fill: none;
+      stroke: #4ade80;
+      stroke-width: 2px;
+      filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.5));
+    }
+    /* axes */
+    .tick text { fill: #64748b; font-size: 10px; }
+    .tick line { stroke: #252b38; }
+    .domain { stroke: #334155; }
+    text { font-family: 'JetBrains Mono', monospace; }
+    /* annotations */
+    .annotation-note-title {
+      font-weight: 700;
+      font-size: 12px;
+      fill: #f472b6;
+    }
+    .annotation-note-label {
+      font-size: 11px;
+      fill: #94a3b8;
+    }
+    .annotation path {
+      stroke: #f472b6;
+    }
+    .annotation-note-bg { fill: transparent; }
     #tooltip {
       position: absolute;
-      background: white;
-      border: 1px solid #333;
-      padding: 8px;
-      font-size: 13px;
+      background: #0d0f14;
+      border: 1px solid #fbbf24;
+      padding: 8px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #e2e8f0;
       pointer-events: none;
       opacity: 0;
-      border-radius: 3px;
+      border-radius: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
     }
   </style>
 </head>
@@ -338,7 +440,8 @@ function addAxisLabels(g, xLabel, yLabel) {
       .attr("x", width / 2)
       .attr("y", height + 45)
       .style("text-anchor", "middle")
-      .style("font-size", "13px")
+      .style("font-size", "11px")
+      .style("fill", "#64748b")
       .text(xLabel);
   }
   g.append("text")
@@ -346,7 +449,8 @@ function addAxisLabels(g, xLabel, yLabel) {
     .attr("x", -height / 2)
     .attr("y", -55)
     .style("text-anchor", "middle")
-    .style("font-size", "13px")
+    .style("font-size", "11px")
+    .style("fill", "#64748b")
     .text(yLabel);
 }
 
